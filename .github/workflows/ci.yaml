@@ -1,0 +1,53 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GKE_CLUSTER: production-cluster
+  GKE_REGION: us-central1
+  IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/app
+
+jobs:
+  build-and-push:
+    name: Build & Push to GCR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker
+
+      - name: Build Docker image
+        run: |
+          docker build -t $IMAGE:$GITHUB_SHA .
+          docker tag $IMAGE:$GITHUB_SHA $IMAGE:latest
+
+      - name: Push to GCR
+        run: |
+          docker push $IMAGE:$GITHUB_SHA
+          docker push $IMAGE:latest
+
+      - name: Update k8s manifest with new image tag
+        run: |
+          sed -i "s|gcr.io/PROJECT_ID/app:latest|$IMAGE:$GITHUB_SHA|g" k8s/base/deployment.yaml
+          git config user.email "ci@github.com"
+          git config user.name "GitHub Actions"
+          git add k8s/base/deployment.yaml
+          git commit -m "ci: update image to $GITHUB_SHA [skip ci]"
+          git push
+        # Argo CD detects this commit and auto-syncs to GKE
