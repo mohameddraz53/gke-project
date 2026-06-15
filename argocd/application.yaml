@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/YOUR_USERNAME/gke-production-cluster
+    repoURL: https://github.com/mohameddraz53/gke-project/tree/main
     targetRevision: main
     path: k8s/base
   destination:
@@ -14,8 +14,8 @@ spec:
     namespace: production
   syncPolicy:
     automated:
-      prune: true        # Remove resources not in Git
-      selfHeal: true     # Auto-fix drift from desired state
+      prune: true # Remove resources not in Git
+      selfHeal: true # Auto-fix drift from desired state
     syncOptions:
       - CreateNamespace=true
     retry:
